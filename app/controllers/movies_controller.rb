@@ -11,17 +11,20 @@ class MoviesController < ApplicationController
   end
 
   def index
-    @all_ratings = Movie.order(:rating).select(:rating).map(&:rating).uniq
-    @checked_ratings = check
-    @checked_ratings.each do |rating|
-      params[rating] = true
-    end
+    # Using ssssion[] hash for remembering
+    @all_ratings = Movie.ratings # Assign Movie.ratings to all ratings
+    @sort = params[:sort] || session[:sort] # assign sorted values to sort
+    session[:ratings] = session[:ratings] || {'G'=>'','PG'=>'','PG-13'=>'','R'=>''} # set ratings to nill
+    @t_param = params[:ratings] || session[:ratings]
+    session[:sort] = @sort
+    session[:ratings] = @t_param 
+    @movies = Movie.where(rating: session[:ratings].keys).order(session[:sort])
 
-    if params[:sort]
-      @movies = Movie.order(params[:sort])
-    else
-      #@movies = Movie.all
-      @movies = Movie.where(:rating => @checked_ratings)
+    # if null values exist redirect
+    if(params[:sort].nil? and !(session[:sort].nil?)) or (params[:ratings].nil? or !(session[:rating].nil?))
+     flash.keep
+     # URI is lacking the right params[] so forced to fill them in from the session[]
+     redirect_to movies_path(sort: session[:sort], ratings: session[:ratings])
     end
   end
 
@@ -51,15 +54,6 @@ class MoviesController < ApplicationController
     @movie.destroy
     flash[:notice] = "Movie '#{@movie.title}' deleted."
     redirect_to movies_path
-  end
- private
-
-  def check
-    if params[:ratings]
-      params[:ratings].keys
-    else
-      @all_ratings
-    end
   end
 
 end
