@@ -11,20 +11,32 @@ class MoviesController < ApplicationController
   end
 
   def index
-    # Using ssssion[] hash for remembering
-    @all_ratings = Movie.ratings # Assign Movie.ratings to all ratings
-    @sort = params[:sort] || session[:sort] # assign sorted values to sort
-    session[:ratings] = session[:ratings] || {'G'=>'','PG'=>'','PG-13'=>'','R'=>''} # set ratings to nill
+    @all_ratings = Movie.order(:rating).select(:rating).map(&:rating).uniq
+    @checked_ratings = check
+    @checked_ratings.each do |rating|
+      params[rating] = true
+    end
+
+    @sort = params[:sort] || session[:sort] 
+    session[:ratings] = session[:ratings] || {'G'=>'','PG'=>'','PG-13'=>'','R'=>''}
     @t_param = params[:ratings] || session[:ratings]
     session[:sort] = @sort
     session[:ratings] = @t_param 
     @movies = Movie.where(rating: session[:ratings].keys).order(session[:sort])
 
-    # if null values exist redirect
-    if(params[:sort].nil? and !(session[:sort].nil?)) or (params[:ratings].nil? or !(session[:rating].nil?))
-     flash.keep
-     # URI is lacking the right params[] so forced to fill them in from the session[]
-     redirect_to movies_path(sort: session[:sort], ratings: session[:ratings])
+    if (params[:ratings].nil? && !session[:ratings].nil?) || (params[:order].nil? && !session[:order].nil?)
+      redirect_to movies_path("ratings" => session[:ratings], "order" => session[:order])
+    elsif !params[:ratings].nil? || !params[:order].nil?
+      if !params[:ratings].nil?
+        array_ratings = params[:ratings].keys
+        return @movies = Movie.where(rating: array_ratings).order(session[:order])
+      else
+        return @movies = Movie.all.order(session[:order])
+      end
+    elsif !session[:ratings].nil? || !session[:order].nil?
+      redirect_to movies_path("ratings" => session[:ratings], "order" => session[:order])
+    else
+      return @movies = Movie.all
     end
   end
 
@@ -54,6 +66,15 @@ class MoviesController < ApplicationController
     @movie.destroy
     flash[:notice] = "Movie '#{@movie.title}' deleted."
     redirect_to movies_path
+  end
+ private
+
+  def check
+    if params[:ratings]
+      params[:ratings].keys
+    else
+      @all_ratings
+    end
   end
 
 end
